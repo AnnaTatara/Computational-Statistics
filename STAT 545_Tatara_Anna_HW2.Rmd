@@ -1,0 +1,223 @@
+---
+title: "STAT 545 Homework 2"
+author: "Anna Tatara"
+date: "9/7/2017"
+output: pdf_document
+---
+
+#Problem 1: Eigenvalues and eigenvectors.
+#####1:Explain why the power method returns the largest eigenvalue and its eigenvector.
+If we assume that the eigenvectors of a matrix form a basis, then we know that some vector in the space can be written as a linear combination of the eigenvectors, {v}. If we call this intial vector x0, then the power method multiplies the matrix A by x0 to get a new vector x1. So, x1 is simply a linear combination of the eigenvectors again. This process continues until eventually we have some nth vector xn=A^n*x0. 
+
+So, we have that A * v_j = lambda_j * v_j. We simply factor our the first eigenvalue and see that the limit of xm/lambda1 converges to the eigenvector associated with the dominant eigenvalue. 
+
+#####2: Explain why the norm of a symmetric matrix is the ratio of its largest and smallest eigenvalues.
+
+The condition number is defined as the norm of the matrix divided by the norm of the inverse of the matrix. For a symmetric matrix, the largest eigenvalue of the inverse is equal to the smallest eigenvalue of the original matrix. Hence, the condition number is the ratio of the largest and smallest eigenvalues.
+
+
+#Problem 2: Implementing priority queues and sorting.
+#####1: Indices
+The parent node for an element is the floor(ElementIndex/2).
+The left child is indexed at 2*ElementIndex.
+The right child is indexed at 2*ElementIndex+1.
+
+#####2: write function
+```{r echo=TRUE}
+make_heap<-function(LMAX){
+  l<-vector("expression",LMAX)
+  for(idx in 1:LMAX){
+    l[idx]<-NULL
+  }
+  return(l)
+}
+```
+
+#####3: max function
+```{r echo=TRUE}
+max_heap<-function(heap){
+  max_element<-heap[1]
+  return(max_element)
+}
+```
+
+#####4: remove max
+```{r echo=TRUE}
+remove_max<-function(heap){
+  heap[1]<-heap[length(heap)] #start swap of most recent element to top and remove index 1 (max element)
+  heap<-heap[-length(heap)] #finish swap
+  index<-1
+  while(index<length(heap)){
+    temp_vect<-c(heap[index],heap[index*2],heap[(index*2)+1])
+    temp_vect[is.na(temp_vect)]<-rep(0,sum(is.na(temp_vect)))
+    temp_max_index<-which.max(temp_vect) #compare parent and children
+    temp_value<-temp_vect[temp_max_index] #store max value of parent and children
+    if (temp_max_index==1){ #if statment finds the actual index in the heap of the compared max value
+      max_index<-index
+      break
+    }else if (temp_max_index==2){
+      max_index<-index*2
+    }else{
+      max_index<-1+(index*2)
+    }
+    heap[max_index]<-heap[index]
+    heap[index]<-temp_value
+    index<-max_index
+  }
+
+  return(heap)
+}
+```
+
+#####5: insert
+```{r echo=TRUE}
+insert<-function(heap,inserted_number){
+  heap[length(heap)+1]<-inserted_number
+  index<-length(heap)
+  while(index>1){
+  temp_vect<-c(heap[index],heap[floor(index/2)])
+  temp_max_index<-which.max(temp_vect)
+  temp_value<-temp_vect[temp_max_index]
+  if(temp_max_index==1){
+    min_index=floor(index/2)
+  }else{
+    break
+  }
+  heap[index]<-heap[min_index]
+  heap[min_index]<-temp_value
+  index<-min_index
+  }
+  return(heap)
+  
+}
+
+```
+#####6: sort
+```{r echo=TRUE}
+sort<-function(input_vector){
+  sorted_vector<-rep(0,length(input_vector))
+  heap<-input_vector[1]
+  for(ii in 2:length(input_vector)){
+    heap<-insert(heap,input_vector[ii])
+  }
+  for(jj in 1:length(input_vector)){
+    sorted_vector[jj]<-max_heap(heap)
+    heap<-remove_max(heap)
+  }
+  print(sorted_vector)
+}
+
+```
+To show this works with a random sample of 20 numbers, we have:
+```{r echo=TRUE}
+x<-sample(1:100,20)
+sort(x)
+```
+
+
+# Problem 3: The knapsack problem
+#####1:function
+```{r echo=TRUE}
+knapsack_it<-function(ww,vv,W_knapsack){
+  if(length(ww)!=length(vv)){
+    stop('Please choose vectors of equal length')
+  }
+  knap<-rep(0,W_knapsack+1)
+  knap[W_knapsack+1]<-0
+  comparison<-rep(0,length(ww))
+  knap_index<-rep(0,W_knapsack)
+  knap_choice<-matrix(rep(0,W_knapsack^2),nrow=W_knapsack)
+  if(any(ww==1)){
+    temp_index<-which(ww==1)
+    knap[1]<-max(vv[temp_index]) #setting value for weight 1
+    knap_choice[1,1]<-1
+  }
+  for(idx in 2:W_knapsack){
+    for(ii in 1:length(ww)){
+      check<-idx-w[ii]
+       if(check==0){
+         check=W_knapsack+1
+       }else if(check<0){
+         break
+       }
+      comparison[ii]<-knap[check]+vv[ii]
+    }
+    comparison<-c(knap[idx-1],comparison)
+    knap[idx]<-max(comparison)
+    knap_index<-which.max(comparison)
+    if(knap_index==1){
+       knap_choice[idx,]<-knap_choice[idx-1,]
+     }else {
+       knap_choice_add<-w[knap_index-1]
+       if(idx-ww[knap_index-1]>0){
+         knap_choice[idx,]<-knap_choice[idx-ww[knap_index-1],]
+       }
+       knap_choice[idx,idx]<-knap_choice_add
+     }
+    
+  }
+  final_choices<-rep(0,length(ww))
+  for(jj in 1:length(ww)){
+    final_choices[jj]<-length(which(knap_choice[W_knapsack,]==ww[jj]))
+  }
+  
+  V_knapsack<-knap[W_knapsack]
+  print(final_choices)
+  return(V_knapsack)
+}
+
+```
+#####2: test function
+```{r echo=TRUE}
+w = c(1,2,3,4,5,6)
+v = c(1,8,10,10,19,25)
+W = 25
+knapsack_it(w,v,W)
+
+```
+
+# Problem 4: Markov Chains
+#####1: 
+
+```{r echo=TRUE}
+Pij<-function(A,i,j){
+  Pij<-A[i,j]
+}
+
+```
+#####2: 
+
+```{r echo=TRUE}
+Pj<-function(pi,j){
+  Pj<-pi[j]
+}
+
+```
+
+
+#####3: 
+```{r echo=TRUE}
+pi_2<-function(A,pi){
+ pi_2<-A%*%pi 
+}
+
+```
+
+#####4:
+There are N multiplications and then N additions for each element of the new matrix, resulting in 2N. This is done N times for all of the elements in the resulting matrix. Hence, the complexity is O(N^2).
+
+#####5:
+```{r echo=FALSE}
+pi_t<-function(t,A,pi_1){
+  pi_t<-(A^(t-1))%*%pi_1
+}
+
+```
+This is an O(N^3) operation as each A matrix multiplication is O(N^3) and then the new A times pi_1 is O(N^2). So the resulting complexity is O(N^3).
+
+#####6:
+There are $N^{T}$ such sequences of S.
+
+#####7:
+It would require $N^{t-1}$ summations to calculate the probability of $P(S_{t}=i)$ in this way.
+To calculate the whole vector, it would take $N^{T}$ summations.
